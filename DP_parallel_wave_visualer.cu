@@ -45,13 +45,11 @@ void usage();
 /**************************************************************/
 int main(int argc, char *argv[])  {
   int i, j;
-  //process_args(argc, argv);
-  //int world[N][N];
 
   //parse input
   if (argc != 1){
     if(argc != 2) {
-      printf("usage: ./dp_rand (size) \n");
+      printf("usage: ./dp_gpu_visual \n");
       exit(0);
     } else {
       N = atoi(argv[1]);
@@ -73,6 +71,7 @@ int main(int argc, char *argv[])  {
   }
 
   //set up world
+  //world represents the window we'll animate
   world = new int[N*N]();
 
   cudaEventCreate(&(cudaData.start));
@@ -80,8 +79,7 @@ int main(int argc, char *argv[])  {
 
   GPUDisplayData my_display(N, N, &cudaData, "Simple openGL-Cuda");
 
-  //make world
-  //fill in trees
+  //initialize world conditions
   for(i=0; i < N; i++){
     for(j=0; j < N; j++){
       world[i*N + j] = -1*i + -1*j;
@@ -95,11 +93,6 @@ int main(int argc, char *argv[])  {
   int x = -1;
   int* currMax;
   currMax = &x;
-
-  /*
-     printf("%c\n", cudaData.string_a[40]);
-     printf("%s\n", cudaData.string_b);
-   */
 
   //allocate memory for currMax
   HANDLE_ERROR(cudaMalloc((void**)&cudaData.currMax,
@@ -149,9 +142,7 @@ int main(int argc, char *argv[])  {
 //FUNCTION: clean_up
 // passed to AnimateComputation method.
 // it is called when the program exits and should clean up
-// all cudaMalloc'ed state.  Your clean-up function's prototype
-// must match this, which means you need a global(s) that point
-// to anything cudaMalloc'ed so you can free them here
+// all cudaMalloc'ed state.
 /**************************************************************/
 static void clean_up(void) {
   cudaFree(cudaData.read_grid);
@@ -162,7 +153,7 @@ static void clean_up(void) {
 /* computeLCS
  * @ inputs: devPtr
  * @ inputs: my_data - a struct consisting of important data for LCS
- * 
+ *
  * This function computes the LCS of two strings.
  */
 static void compute_LCS(uchar4 *devPtr, void *my_data) {
@@ -179,10 +170,6 @@ static void compute_LCS(uchar4 *devPtr, void *my_data) {
   int N = cudaData->N;
 
   int thread_count;
-  //printf("HERE HERE HERE\n");
-  //char* A = cudaData->string_a;
-  //printf("%c\n", A[2]);
-  //printf("HERE HERE HERE\n");
   thread_count = 32;
 
   //set up blocks
@@ -216,7 +203,7 @@ static void compute_LCS(uchar4 *devPtr, void *my_data) {
 /* color_in_kernel
  * @ inputs: optr
  * @ inputs: data - cuda data struct for holding useful info
- * 
+ *
  * kernel dedicated to coloring cells in
  */
 __global__ void color_in_kernel(uchar4 *optr, my_cuda_data data) {
@@ -247,8 +234,8 @@ __global__ void color_in_kernel(uchar4 *optr, my_cuda_data data) {
 
 
 /* LCS_kernel
- * @ inputs: data - a struct containing useful data for solving LCS 
- * 
+ * @ inputs: data - a struct containing useful data for solving LCS
+ *
  * this function either:
  *    increments a cell's age by 1
  *    computes the LCS value of a cell based on the LCS algorithm if age = 0
@@ -285,7 +272,7 @@ __global__ void  LCS_kernel(my_cuda_data data){
 
     else if (string_a[x] == string_b[y]){
       //printf("Found matching letters\n");
-      int old_offset = (x-1) + (y-1)*N; 
+      int old_offset = (x-1) + (y-1)*N;
       read_data[offset] = read_data[old_offset] + 1;
     }
 
@@ -308,8 +295,8 @@ __global__ void  LCS_kernel(my_cuda_data data){
 
 
 /* retrace_kernel
- * @ inputs: data - a struct containing useful data for solving LCS 
- * 
+ * @ inputs: data - a struct containing useful data for solving LCS
+ *
  * retraces the final LCS value backwards
  */
 __global__ void  retrace_kernel(my_cuda_data data){
@@ -342,17 +329,17 @@ __global__ void  retrace_kernel(my_cuda_data data){
         read_data[old_offset1] += N + 1;
       }
       else{
-        read_data[old_offset2] += N + 1; 
-      }     
+        read_data[old_offset2] += N + 1;
+      }
     }
   }
-} 
+}
 
 /*colorPix
  * @ inputs: optr
  * @ inputs: offset - offset to denote cell being colored
  * @ inputs: type - denotes the color to be set based on type
- * 
+ *
  *colors a pixel
  *type determines if it is an unfilled cell (0), filled cell(1),
  */
